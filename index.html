@@ -52,7 +52,6 @@
             width: 100%;
         }
 
-        /* 提示工具列 */
         .instruction-banner {
             background-color: #333;
             color: #fff;
@@ -63,33 +62,17 @@
             border-bottom: 2px solid var(--primary-color);
         }
 
-        /* Google Maps 彈出視窗客製化（針對深色主題優化） */
-        .gm-style .gm-style-iw-c {
-            background-color: var(--card-bg) !important;
-            color: var(--text-main) !important;
-            border-radius: 12px !important;
-            padding: 12px !important;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5) !important;
-        }
-        .gm-style .gm-style-iw-d {
-            overflow: auto !important;
-        }
-        .gm-style .gm-style-iw-tc::after {
-            background-color: var(--card-bg) !important;
-        }
-        /* 關閉按鈕顏色修正 */
-        .gm-ui-hover-effect {
-            background: none !important;
-            align-items: center !important;
-            justify-content: center !important;
-        }
-        .gm-ui-hover-effect span {
-            background-color: var(--text-sub) !important;
+        /* 資訊視窗內層包裹容器，防止樣式被 Google 內建結構破壞 */
+        .custom-iw-wrapper {
+            background-color: var(--card-bg);
+            color: var(--text-main);
+            padding: 10px;
+            border-radius: 8px;
+            font-family: sans-serif;
         }
 
         /* 表單樣式 */
         .report-form {
-            padding: 5px;
             min-width: 220px;
         }
 
@@ -184,120 +167,135 @@
         💡 點擊地圖上的任意地點，即可回報您發現的野生動植物！
     </div>
 
-    <!-- Google 地圖容器 -->
+    <!-- 地圖容器 -->
     <div id="map"></div>
 
     <script>
         let map;
-        let currentInfoWindow = null; // 用於追蹤當前開啟的視窗
+        let currentInfoWindow = null;
+        let AdvancedMarkerElement; 
+        let PinElement;            
         
-        // 模擬的初始資料庫（實際應用中會從後端 API 取得）
+        // 模擬初始生態資料庫
         const speciesDatabase = [
             { id: 1, name: "台灣黑熊", type: "animal", description: "在步道附近發現爪痕與足跡", lat: 23.4700, lng: 120.9500, date: "2026-07-01" },
             { id: 2, name: "玉山針葉蘭", type: "plant", description: "向陽坡面群生，正值花期", lat: 23.4800, lng: 120.9600, date: "2026-07-05" }
         ];
 
-        // 1. 初始化 Google 地圖
-        function initMap() {
-            // 以台灣中心（大雪山/玉山一帶經緯度）為預設中心點
+        // 1. 初始化 Google 地圖（由底部腳本下載完成後觸發）
+        async function initMap() {
+            // 從全域 google 物件載入新版地圖與進階標記元件庫
+            const { Map } = await google.maps.importLibrary("maps");
+            const markerLib = await google.maps.importLibrary("marker");
+            
+            AdvancedMarkerElement = markerLib.AdvancedMarkerElement;
+            PinElement = markerLib.PinElement;
+
+            // 以台灣中央為預設地圖視角中心
             const taiwanCenter = { lat: 23.7500, lng: 120.9500 };
 
-            map = new google.maps.Map(document.getElementById("map"), {
+            map = new Map(document.getElementById("map"), {
                 zoom: 8,
                 center: taiwanCenter,
-                mapTypeId: 'terrain', // 強制設定為地形圖，方便觀察山川與地貌
+                mapTypeId: 'terrain', // 設定為即時地形圖，最適合觀察生態棲地
+                mapId: "DEMO_MAP_ID", // 啟用 AdvancedMarkerElement 所需的預設 ID
                 mapTypeControl: true,
-                streetViewControl: true, // 啟用街景服務
+                streetViewControl: true,
                 fullscreenControl: true
             });
 
-            // 載入預設的生態資料標記
+            // 渲染初始資料
             loadExistingMarkers();
 
-            // 監聽地圖點擊事件（用於新增回報）
+            // 監聽點擊地圖事件以新增觀測回報
             map.addListener("click", (mapsMouseEvent) => {
                 handleMapClick(mapsMouseEvent.latLng);
             });
         }
 
-        // 2. 渲染既有的生物標記
+        // 2. 循環渲染既有的生態標記
         function loadExistingMarkers() {
             speciesDatabase.forEach(species => {
                 createSpeciesMarker(species);
             });
         }
 
-        // 3. 建立單個生物標記與其點擊視窗
+        // 3. 建立帶有動態內嵌 Emoji 的進階大頭針標記
         function createSpeciesMarker(species) {
-            // 根據動植物類型給予不同的圖示顏色（動物橘紅、植物翠綠）
             const markerColor = species.type === 'animal' ? '#ff7043' : '#66bb6a';
+            const glyphText = species.type === 'animal' ? '🐾' : '🌱';
+
+            const pinBackground = new PinElement({
+                background: markerColor,
+                borderColor: "#ffffff",
+                glyph: glyphText, 
+                scale: 1.2
+            });
             
-            const marker = new google.maps.Marker({
+            const marker = new AdvancedMarkerElement({
                 position: { lat: species.lat, lng: species.lng },
                 map: map,
                 title: species.name,
-                icon: {
-                    path: google.maps.SymbolPath.CIRCLE,
-                    fillColor: markerColor,
-                    fillOpacity: 0.9,
-                    strokeColor: '#ffffff',
-                    strokeWeight: 2,
-                    scale: 10
-                }
+                content: pinBackground.element 
             });
 
-            // 點擊標記顯示詳細資訊
+            // 標記點擊事件：跳出詳細資訊視窗
             marker.addListener("click", () => {
                 if (currentInfoWindow) currentInfoWindow.close();
 
                 const typeText = species.type === 'animal' ? '動物' : '植物';
                 const contentString = `
-                    <div class="view-popup">
-                        <h3>${species.name}</h3>
-                        <span class="badge">${typeText}</span>
-                        <p><strong>描述：</strong>${species.description}</p>
-                        <div class="meta">回報日期：${species.date}<br>座標：${species.lat.toFixed(4)}, ${species.lng.toFixed(4)}</div>
+                    <div class="custom-iw-wrapper">
+                        <div class="view-popup">
+                            <h3>${species.name}</h3>
+                            <span class="badge">${typeText}</span>
+                            <p><strong>描述：</strong>${species.description}</p>
+                            <div class="meta">回報日期：${species.date}<br>座標：${species.lat.toFixed(4)}, ${species.lng.toFixed(4)}</div>
+                        </div>
                     </div>
                 `;
 
                 currentInfoWindow = new google.maps.InfoWindow({
                     content: contentString
                 });
-                currentInfoWindow.open(map, marker);
+                currentInfoWindow.open({
+                    anchor: marker,
+                    map: map
+                });
             });
         }
 
-        // 4. 處理地圖點擊（跳出填寫表單）
+        // 4. 處理地圖點擊（於點擊位置跳出輸入表單）
         function handleMapClick(latLng) {
             if (currentInfoWindow) currentInfoWindow.close();
 
             const lat = latLng.lat();
             const lng = latLng.lng();
 
-            // 動態產生表單 HTML
             const formContent = `
-                <div class="report-form">
-                    <h3>新增生態觀測</h3>
-                    <div class="form-group">
-                        <label>名稱 (如：台灣獼猴)</label>
-                        <input type="text" id="species-name" placeholder="請輸入動植物名稱" required>
+                <div class="custom-iw-wrapper">
+                    <div class="report-form">
+                        <h3>新增生態觀測</h3>
+                        <div class="form-group">
+                            <label>名稱 (如：台灣獼猴)</label>
+                            <input type="text" id="species-name" placeholder="請輸入動植物名稱" required>
+                        </div>
+                        <div class="form-group">
+                            <label>分類</label>
+                            <select id="species-type">
+                                <option value="animal">動物</option>
+                                <option value="plant">植物</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>生態描述</label>
+                            <input type="text" id="species-desc" placeholder="數量、行為或周邊環境...">
+                        </div>
+                        <button class="submit-btn" onclick="submitReport(${lat}, ${lng})">送出回報</button>
                     </div>
-                    <div class="form-group">
-                        <label>分類</label>
-                        <select id="species-type">
-                            <option value="animal">動物</option>
-                            <option value="plant">植物</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>生態描述</label>
-                        <input type="text" id="species-desc" placeholder="數量、行為或周邊環境...">
-                    </div>
-                    <button class="submit-btn" onclick="submitReport(${lat}, ${lng})">送出回報</button>
                 </div>
             `;
 
-            // 在點擊位置開啟臨時的 InfoWindow
             currentInfoWindow = new google.maps.InfoWindow({
                 content: formContent,
                 position: latLng
@@ -305,21 +303,20 @@
             currentInfoWindow.open(map);
         }
 
-        // 5. 處理表單送出
+        // 5. 處理表單送出與本地資料儲存
         function submitReport(lat, lng) {
             const name = document.getElementById("species-name").value.trim();
             const type = document.getElementById("species-type").value;
             const description = document.getElementById("species-desc").value.trim() || "無詳細描述";
-            const today = new Date().toISOString().split('T')[0];
+            const today = new Date().toISOString().split('T');
 
             if (!name) {
                 alert("請填寫動植物名稱！");
                 return;
             }
 
-            // 建立新資料物件
             const newSpecies = {
-                id: Date.now(), // 簡單用時間戳當 ID
+                id: Date.now(),
                 name: name,
                 type: type,
                 description: description,
@@ -328,4 +325,3 @@
                 date: today
             };
 
-            // 儲存至本地陣列並渲染新標記
