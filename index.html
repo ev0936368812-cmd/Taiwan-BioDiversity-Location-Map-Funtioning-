@@ -3,9 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>9. 生物多樣性地圖 App</title>
-    <!-- Leaflet 地圖 CSS -->
+    <title>台灣生物多樣性觀測地圖</title>
+    
+    <!-- Leaflet 地圖核心 CSS -->
     <link rel="stylesheet" href="https://unpkg.com" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    
     <style>
         :root {
             --primary-color: #2e7d32;
@@ -23,7 +25,7 @@
             color: var(--text-main);
             display: flex;
             flex-direction: column;
-            height: 100vh;
+            height: 100vh; /* 確保網頁佔滿整個視窗高度 */
         }
 
         header {
@@ -31,9 +33,6 @@
             padding: 12px 20px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.4);
             z-index: 1000;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
         }
 
         h1 {
@@ -48,12 +47,6 @@
             margin-top: 3px;
         }
 
-        #map {
-            flex: 1;
-            width: 100%;
-        }
-
-        /* 提示工具列 */
         .instruction-banner {
             background-color: #333;
             color: #fff;
@@ -64,59 +57,64 @@
             border-bottom: 2px solid var(--primary-color);
         }
 
-        /* 彈出視窗客製化樣式 */
-        .leaflet-popup-content-wrapper {
-            background-color: var(--card-bg);
-            color: var(--text-main);
-            border-radius: 12px;
-            border: 1px solid #333;
+        /* 🔥 關鍵修正：必須給地圖容器明確的高度，否則會變 0 像素而隱形 */
+        #map {
+            flex: 1; /* 填滿剩餘的畫面空間 */
+            width: 100%;
         }
 
+        /* 彈出視窗樣式客製化 */
+        .leaflet-popup-content-wrapper {
+            background-color: var(--card-bg) !important;
+            color: var(--text-main) !important;
+            border-radius: 12px;
+        }
         .leaflet-popup-tip {
-            background-color: var(--card-bg); /* 補齊中斷的程式碼 */
+            background-color: var(--card-bg) !important;
         }
     </style>
 </head>
 <body>
 
     <header>
-        <div>
-            <h1>生物多樣性地圖</h1>
-            <div class="subtitle">台灣生態觀測記錄</div>
-        </div>
+        <h1>生物多樣性地圖</h1>
+        <div class="subtitle">台灣生態觀測記錄</div>
     </header>
 
     <div class="instruction-banner">
-        點擊地圖上的標記，查看生物觀測詳細資訊
+        💡 點擊地圖上的藍色標記，查看生物觀測詳細資訊
     </div>
 
     <!-- 地圖容器 -->
     <div id="map"></div>
 
-    <!-- Leaflet 地圖 JS -->
+    <!-- Leaflet 地圖核心 JS -->
     <script src="https://unpkg.com" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     
     <script>
-        // 初始化地圖，設定中心點於 Chiayi, Taiwan (嘉義) 並設定縮放層級
+        // 1. 初始化地圖（中心點設在台灣嘉義）
         const map = L.map('map').setView([23.475, 120.447], 12);
 
-        // 加入 OpenStreetMap 圖層
+        // 2. 載入 OpenStreetMap 地圖磚
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
             attribution: '© OpenStreetMap contributors'
         }).addTo(map);
 
-        // 範例：新增一個生態觀測點標記 (以嘉義公園為例)
+        // 3. 建立一個實際的生態觀測標記（嘉義公園）
         const marker = L.marker([23.479, 120.457]).addTo(map);
 
-        // 新增彈出視窗內容
+        // 4. 為標記綁定彈出訊息視窗
         marker.bindPopup(`
-            <div>
-                <h3 style="margin: 0 0 5px 0; color: #81c784;">臺灣藍鵲</h3>
-                <p style="margin: 0; font-size: 0.9rem;">地點：嘉義公園</p>
-                <p style="margin: 5px 0 0 0; font-size: 0.8rem; color: #b0b0b0;">紀錄時間：2026-07-07</p>
+            <div style="color: #ffffff; min-width: 150px;">
+                <h3 style="margin: 0 0 5px 0; color: #81c784; font-size: 1.1rem;">臺灣藍鵲</h3>
+                <p style="margin: 3px 0; font-size: 0.9rem;">📍 地點：嘉義公園</p>
+                <p style="margin: 3px 0; font-size: 0.8rem; color: #b0b0b0;">📅 紀錄時間：2026-07-07</p>
             </div>
         `);
+
+        // 預設直接打開該彈出視窗
+        marker.openPopup();
     </script>
 </body>
 </html>
