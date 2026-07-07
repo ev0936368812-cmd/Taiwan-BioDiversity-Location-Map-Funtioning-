@@ -3,10 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>台灣生物多樣性觀測地圖</title>
-    
-    <!-- Leaflet 地圖核心 CSS -->
-    <link rel="stylesheet" href="https://unpkg.com" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <title>9. 生物多樣性地圖 App</title>
     
     <style>
         :root {
@@ -16,7 +13,7 @@
             --text-main: #ffffff;
             --text-sub: #b0b0b0;
         }
-        
+
         body {
             margin: 0;
             padding: 0;
@@ -25,7 +22,7 @@
             color: var(--text-main);
             display: flex;
             flex-direction: column;
-            height: 100vh; /* 確保網頁佔滿整個視窗高度 */
+            height: 100vh;
         }
 
         header {
@@ -33,6 +30,9 @@
             padding: 12px 20px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.4);
             z-index: 1000;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
         h1 {
@@ -47,6 +47,12 @@
             margin-top: 3px;
         }
 
+        #map {
+            flex: 1;
+            width: 100%;
+        }
+
+        /* 提示工具列 */
         .instruction-banner {
             background-color: #333;
             color: #fff;
@@ -57,64 +63,269 @@
             border-bottom: 2px solid var(--primary-color);
         }
 
-        /* 🔥 關鍵修正：必須給地圖容器明確的高度，否則會變 0 像素而隱形 */
-        #map {
-            flex: 1; /* 填滿剩餘的畫面空間 */
-            width: 100%;
-        }
-
-        /* 彈出視窗樣式客製化 */
-        .leaflet-popup-content-wrapper {
+        /* Google Maps 彈出視窗客製化（針對深色主題優化） */
+        .gm-style .gm-style-iw-c {
             background-color: var(--card-bg) !important;
             color: var(--text-main) !important;
-            border-radius: 12px;
+            border-radius: 12px !important;
+            padding: 12px !important;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5) !important;
         }
-        .leaflet-popup-tip {
+        .gm-style .gm-style-iw-d {
+            overflow: auto !important;
+        }
+        .gm-style .gm-style-iw-tc::after {
             background-color: var(--card-bg) !important;
+        }
+        /* 關閉按鈕顏色修正 */
+        .gm-ui-hover-effect {
+            background: none !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+        .gm-ui-hover-effect span {
+            background-color: var(--text-sub) !important;
+        }
+
+        /* 表單樣式 */
+        .report-form {
+            padding: 5px;
+            min-width: 220px;
+        }
+
+        .report-form h3 {
+            margin: 0 0 10px 0;
+            color: #81c784;
+            font-size: 1.1rem;
+            border-bottom: 1px solid #444;
+            padding-bottom: 5px;
+        }
+
+        .form-group {
+            margin-bottom: 10px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.8rem;
+            color: var(--text-sub);
+            margin-bottom: 4px;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 6px;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: white;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        .submit-btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            width: 100%;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+
+        .submit-btn:hover {
+            background-color: #1b5e20;
+        }
+
+        /* 顯示已上傳資料的樣式 */
+        .view-popup {
+            min-width: 200px;
+        }
+        .view-popup h3 {
+            margin: 0 0 5px 0;
+            color: #ffb74d;
+            font-size: 1.1rem;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 6px;
+            background: #333;
+            color: #81c784;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        .view-popup p {
+            margin: 5px 0;
+            font-size: 0.85rem;
+            color: var(--text-sub);
+        }
+        .view-popup .meta {
+            font-size: 0.75rem;
+            color: #777;
+            margin-top: 8px;
+            border-top: 1px solid #333;
+            padding-top: 4px;
         }
     </style>
 </head>
 <body>
 
     <header>
-        <h1>生物多樣性地圖</h1>
-        <div class="subtitle">台灣生態觀測記錄</div>
+        <div>
+            <h1>9. 生物多樣性地圖 App</h1>
+            <div class="subtitle">台灣在地生態即時共享平台</div>
+        </div>
     </header>
 
     <div class="instruction-banner">
-        💡 點擊地圖上的藍色標記，查看生物觀測詳細資訊
+        💡 點擊地圖上的任意地點，即可回報您發現的野生動植物！
     </div>
 
-    <!-- 地圖容器 -->
+    <!-- Google 地圖容器 -->
     <div id="map"></div>
 
-    <!-- Leaflet 地圖核心 JS -->
-    <script src="https://unpkg.com" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    
     <script>
-        // 1. 初始化地圖（中心點設在台灣嘉義）
-        const map = L.map('map').setView([23.475, 120.447], 12);
+        let map;
+        let currentInfoWindow = null; // 用於追蹤當前開啟的視窗
+        
+        // 模擬的初始資料庫（實際應用中會從後端 API 取得）
+        const speciesDatabase = [
+            { id: 1, name: "台灣黑熊", type: "animal", description: "在步道附近發現爪痕與足跡", lat: 23.4700, lng: 120.9500, date: "2026-07-01" },
+            { id: 2, name: "玉山針葉蘭", type: "plant", description: "向陽坡面群生，正值花期", lat: 23.4800, lng: 120.9600, date: "2026-07-05" }
+        ];
 
-        // 2. 載入 OpenStreetMap 地圖磚
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '© OpenStreetMap contributors'
-        }).addTo(map);
+        // 1. 初始化 Google 地圖
+        function initMap() {
+            // 以台灣中心（大雪山/玉山一帶經緯度）為預設中心點
+            const taiwanCenter = { lat: 23.7500, lng: 120.9500 };
 
-        // 3. 建立一個實際的生態觀測標記（嘉義公園）
-        const marker = L.marker([23.479, 120.457]).addTo(map);
+            map = new google.maps.Map(document.getElementById("map"), {
+                zoom: 8,
+                center: taiwanCenter,
+                mapTypeId: 'terrain', // 強制設定為地形圖，方便觀察山川與地貌
+                mapTypeControl: true,
+                streetViewControl: true, // 啟用街景服務
+                fullscreenControl: true
+            });
 
-        // 4. 為標記綁定彈出訊息視窗
-        marker.bindPopup(`
-            <div style="color: #ffffff; min-width: 150px;">
-                <h3 style="margin: 0 0 5px 0; color: #81c784; font-size: 1.1rem;">臺灣藍鵲</h3>
-                <p style="margin: 3px 0; font-size: 0.9rem;">📍 地點：嘉義公園</p>
-                <p style="margin: 3px 0; font-size: 0.8rem; color: #b0b0b0;">📅 紀錄時間：2026-07-07</p>
-            </div>
-        `);
+            // 載入預設的生態資料標記
+            loadExistingMarkers();
 
-        // 預設直接打開該彈出視窗
-        marker.openPopup();
-    </script>
-</body>
-</html>
+            // 監聽地圖點擊事件（用於新增回報）
+            map.addListener("click", (mapsMouseEvent) => {
+                handleMapClick(mapsMouseEvent.latLng);
+            });
+        }
+
+        // 2. 渲染既有的生物標記
+        function loadExistingMarkers() {
+            speciesDatabase.forEach(species => {
+                createSpeciesMarker(species);
+            });
+        }
+
+        // 3. 建立單個生物標記與其點擊視窗
+        function createSpeciesMarker(species) {
+            // 根據動植物類型給予不同的圖示顏色（動物橘紅、植物翠綠）
+            const markerColor = species.type === 'animal' ? '#ff7043' : '#66bb6a';
+            
+            const marker = new google.maps.Marker({
+                position: { lat: species.lat, lng: species.lng },
+                map: map,
+                title: species.name,
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    fillColor: markerColor,
+                    fillOpacity: 0.9,
+                    strokeColor: '#ffffff',
+                    strokeWeight: 2,
+                    scale: 10
+                }
+            });
+
+            // 點擊標記顯示詳細資訊
+            marker.addListener("click", () => {
+                if (currentInfoWindow) currentInfoWindow.close();
+
+                const typeText = species.type === 'animal' ? '動物' : '植物';
+                const contentString = `
+                    <div class="view-popup">
+                        <h3>${species.name}</h3>
+                        <span class="badge">${typeText}</span>
+                        <p><strong>描述：</strong>${species.description}</p>
+                        <div class="meta">回報日期：${species.date}<br>座標：${species.lat.toFixed(4)}, ${species.lng.toFixed(4)}</div>
+                    </div>
+                `;
+
+                currentInfoWindow = new google.maps.InfoWindow({
+                    content: contentString
+                });
+                currentInfoWindow.open(map, marker);
+            });
+        }
+
+        // 4. 處理地圖點擊（跳出填寫表單）
+        function handleMapClick(latLng) {
+            if (currentInfoWindow) currentInfoWindow.close();
+
+            const lat = latLng.lat();
+            const lng = latLng.lng();
+
+            // 動態產生表單 HTML
+            const formContent = `
+                <div class="report-form">
+                    <h3>新增生態觀測</h3>
+                    <div class="form-group">
+                        <label>名稱 (如：台灣獼猴)</label>
+                        <input type="text" id="species-name" placeholder="請輸入動植物名稱" required>
+                    </div>
+                    <div class="form-group">
+                        <label>分類</label>
+                        <select id="species-type">
+                            <option value="animal">動物</option>
+                            <option value="plant">植物</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>生態描述</label>
+                        <input type="text" id="species-desc" placeholder="數量、行為或周邊環境...">
+                    </div>
+                    <button class="submit-btn" onclick="submitReport(${lat}, ${lng})">送出回報</button>
+                </div>
+            `;
+
+            // 在點擊位置開啟臨時的 InfoWindow
+            currentInfoWindow = new google.maps.InfoWindow({
+                content: formContent,
+                position: latLng
+            });
+            currentInfoWindow.open(map);
+        }
+
+        // 5. 處理表單送出
+        function submitReport(lat, lng) {
+            const name = document.getElementById("species-name").value.trim();
+            const type = document.getElementById("species-type").value;
+            const description = document.getElementById("species-desc").value.trim() || "無詳細描述";
+            const today = new Date().toISOString().split('T')[0];
+
+            if (!name) {
+                alert("請填寫動植物名稱！");
+                return;
+            }
+
+            // 建立新資料物件
+            const newSpecies = {
+                id: Date.now(), // 簡單用時間戳當 ID
+                name: name,
+                type: type,
+                description: description,
+                lat: lat,
+                lng: lng,
+                date: today
+            };
+
+            // 儲存至本地陣列並渲染新標記
